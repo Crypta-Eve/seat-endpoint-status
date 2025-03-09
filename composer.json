@@ -1,0 +1,30 @@
+{
+    "name": "cryptaeve/seat-endpoint-status",
+    "description": "SeAT plugin to show a page with the status of esi job endpoints",
+    "type": "seat-plugin",
+    "license": "GPL-2.0-only",
+    "authors": [
+        {
+            "name": "Crypta Electrica",
+            "email": "crypta@crypta.tech"
+        }
+    ],
+    "minimum-stability": "stable",
+    "autoload": {
+        "psr-4": {
+            "CryptaEve\\Seat\\EndpointStatus\\": "src/"
+        }
+    },
+     "extra": {
+        "laravel": {
+            "providers": [
+                "CryptaEve\\Seat\\EndpointStatus\\EndpointStatusServiceProvider"
+            ]
+        }
+    },
+    "require": {
+        "eveseat/web": "^5.0",
+        "haydenpierce/class-finder": "^0.5.3"
+    }
+}
+
