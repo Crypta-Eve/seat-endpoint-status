@@ -23,16 +23,25 @@
                 </thead>
                 <tbody>
                     @foreach ($endpoints as $endpoint => $edata)
-                        <tr class="{{ isset($edata['latest_version']) && isset($edata['seat_version']) ? $edata['seat_version'] != $edata['latest_version'] ? 'table-danger' : 'table-success' : 'table-warning' }}">
+                        <tr class="{{ isset($edata['latest_version']) && isset($edata['seat_version']) ? $edata['seat_version'] != $edata['latest_version'] ? 'table-danger' : 'table-success' : (!isset($edata['seat_version']) ? 'table-info' : 'table-warning') }}">
                             <th scope="row">{{ $endpoint }}</th>
                             <td>{{ isset($edata['latest_version']) ? $edata['latest_version'] : "N/A" }}</td>
                             <td>{{ isset($edata['seat_version']) ? $edata['seat_version'] : "Not Found" }}</td>
-                            <td>{{ isset($edata['seat_status']) ? $edata['seat_status'] : "Not Found" }}</td>
+                            <td class="table-danger">
+                                {{ isset($edata['seat_status']) ? $edata['seat_status'] : "Not Found" }}
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
 
+        </div>
+        <div class="card-footer">
+            <div class="row">
+                <div class="col-4">ESI Query Time - {{ $esiTime }}</div>
+                <div class="col-4">SeAT Query Time - {{ $seatTime }}</div>
+                <div class="col-4">Status Query Time - {{ $cacheTime }}</div>
+            </div>
         </div>
     </div>
 @stop

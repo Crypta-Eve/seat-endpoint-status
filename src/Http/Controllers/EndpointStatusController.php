@@ -5,8 +5,9 @@ namespace CryptaEve\Seat\EndpointStatus\Http\Controllers;
 use ReflectionClass;
 
 use HaydenPierce\ClassFinder\ClassFinder;
+use Seat\Services\Contracts\EsiClient;
 use Seat\Web\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Http;
+use Seat\Eseye\Exceptions\RequestFailedException;
 
 
 class EndpointStatusController extends Controller 
@@ -15,35 +16,47 @@ class EndpointStatusController extends Controller
     public function getStatusView()
     {
 
+        $start = now();
+
         // each entry will be keyed by endpoint and method and have the following underlying keys
         // - latest_version = esi _latest version
         // - seat_version   = the version of the endpoint that SeAT is calling
         // - seat_status    = what the routeblocker has for this endpoint at the moment
         $endpoints = [];
 
-        $response = Http::get('https://esi.evetech.net/_latest/swagger.json');
+        try {
+            $client = app()->make(EsiClient::class);
+            $client->setVersion('_latest');
+            $call = $client->invoke('get', '/swagger.json');
 
-        if (!$response->successful()) return redirect()->back()->with('error', 'Couldnt reach ESI swagger _latest!');
-        if (!isset($response['paths'])) return redirect()->back()->with('error', 'Missing paths from ESI swagger _latest!');
+            $response = $call->getBody();
+            $paths = collect($response->paths);
 
-        foreach($response['paths'] as $pathv => $val) {
-            preg_match('/^\/(v\d+)\/([^\/]+)(\/.*)?\/?$/', $pathv, $matches);
-            if (isset($matches[1]) && isset($matches[2])) {
-                // Extract version
-                $version = $matches[1]; // e.g. "v1"
-                
-                // Keep leading and trailing slashes and combine the first path segment with any remaining path
-                $path = '/' . $matches[2] . (isset($matches[3]) ? $matches[3] : '');
-                
-                
-
-                $endpoints[$path] = [];
-                $endpoints[$path]['latest_version'] = $version;
-        
-            } else {
-                continue;
+            foreach($paths as $pathv => $val) {
+                preg_match('/^\/(v\d+)\/([^\/]+)(\/.*)?\/?$/', $pathv, $matches);
+                if (isset($matches[1]) && isset($matches[2])) {
+                    // Extract version
+                    $version = $matches[1]; // e.g. "v1"
+                    
+                    // Keep leading and trailing slashes and combine the first path segment with any remaining path
+                    $path = '/' . $matches[2] . (isset($matches[3]) ? $matches[3] : '');
+                    
+                    
+    
+                    $endpoints[$path] = [];
+                    $endpoints[$path]['latest_version'] = $version;
+            
+                } else {
+                    continue;
+                }
             }
-        }
+
+       } catch (RequestFailedException $e) {
+            logger()->error('unable to get _latest', ['error' => $e]);
+            return redirect()->back()->with('error',  'Unable to request _latest/swagger.json');
+       }
+
+       $esiDone = now();
 
         $seatendpoints = [];
 
@@ -74,14 +87,23 @@ class EndpointStatusController extends Controller
             }
         }
 
+        $seatDone = now();
+
         foreach($seatendpoints as $se) {
             $cacheKey = 'esi-route-status:' . $se;
             $status = cache($cacheKey, 'Not Present');
             $endpoints[$se]['seat_status'] = $status;
         }
 
+        $cacheDone = now();
 
-        return view("endpointstatus::status", compact('endpoints'));
+        $esiTime = $esiDone->diffForHumans($start, false);
+        $seatTime = $seatDone->diffForHumans($esiDone, false);
+        $cacheTime = $cacheDone->diffForHumans($seatDone, false);
+
+
+
+        return view("endpointstatus::status", compact('endpoints', 'esiTime', 'seatTime', 'cacheTime'));
     }
 
 }
